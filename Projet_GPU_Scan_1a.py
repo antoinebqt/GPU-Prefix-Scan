@@ -1,10 +1,12 @@
+import math
+
 import numpy as np
 from numba import cuda
 
 
 @cuda.jit
 def scanKernel(a, n):
-    m = int(np.log2(n))
+    m = int(math.log2(n))
     for d in range(0, m):
         for k in range(0, n, pow(2, d + 1)):
             idx = k + pow(2, d + 1) - 1

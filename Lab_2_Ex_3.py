@@ -31,7 +31,7 @@ def convertToBW(imageArray):
         imageArray[x][y][2] = colorVal
 
 
-blocksPerGrid = (51,51)
+blocksPerGrid = (51, 51)
 threadsPerBlock = (16, 16, 1)
 
 imgArray = getImageAsArray()

@@ -8,7 +8,7 @@ def writeGlobalID(array):
     array[global_id] = global_id
 
 
-threadsPerBlock = 16
+threadsPerBlock = 32
 blocksPerGrid = 1
 
 # Generate array with size matching total number of threads
