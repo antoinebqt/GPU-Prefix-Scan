@@ -85,7 +85,7 @@ The first value is discarded to avoid caching and JIT interference and the avera
 
 ---
 
-## bench.py
+## sharedMemory.py
 
 This program demonstrates how to allocate shared memory (`cuda.shared.array`) on the device and copy data from global memory (array `toShare` as parameter). 
 
