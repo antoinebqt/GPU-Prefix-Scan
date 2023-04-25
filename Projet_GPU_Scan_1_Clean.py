@@ -6,28 +6,26 @@ from numba import cuda
 
 @cuda.jit
 def scanKernel(array, n):
-    m = int(math.log2(n))
-    #print("wtf")
+    m = round(math.log2(n))
+    index = cuda.grid(1)
+
 
     for d in range(0, m):
-        k = cuda.grid(1)  # Soit k devrait etre en fonction de d
-        if k != 1 and k != 3:  # Meilleur if pour vérifier quel thread doit travailler
-            print("Par k =", k, "(et d =", d, ") a[", k + pow(2, d + 1) - 1, "] se fait ajouter a[",
-                  k + pow(2, d) - 1, "]")
-            array[k + pow(2, d + 1) - 1] += array[k + pow(2, d) - 1]  # Peut etre pas les bons index
-            cuda.syncthreads()
+        k = index * pow(2, d + 1)
+        if k < n - 1:
+            array[k + pow(2, d + 1) - 1] += array[k + pow(2, d) - 1]
+        cuda.syncthreads()
 
-    #array[n - 1] = 0
+    array[n - 1] = 0
+    cuda.syncthreads()
 
-    # for d in range(m - 1, -1, -1):
-    #    k = cuda.grid(1)
-    #    if k != 1 and k != 3:
-    #        print("Par k =", k, "(et d =", d, ") t = a[", k + pow(2, d) - 1, "] | a[", k + pow(2, d) - 1, "] = a[",
-    #              k + pow(2, d + 1) - 1, "] | a[", k + pow(2, d + 1) - 1, "] += t")
-    #        t = array[k + pow(2, d) - 1]
-    #        array[k + pow(2, d) - 1] = array[k + pow(2, d + 1) - 1]
-    #        array[k + pow(2, d + 1) - 1] += t
-
+    for d in range(m - 1, -1, -1):
+        k = index * pow(2, d + 1)
+        if k < n - 1:
+            t = array[k + pow(2, d) - 1]
+            array[k + pow(2, d) - 1] = array[k + pow(2, d + 1) - 1]
+            array[k + pow(2, d + 1) - 1] += t
+        cuda.syncthreads()
 
 def scanGPU(array):
     n = len(array)
