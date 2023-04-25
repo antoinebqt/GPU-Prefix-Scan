@@ -9,7 +9,6 @@ def scanKernel(array, n):
     m = round(math.log2(n))
     index = cuda.grid(1)
 
-
     for d in range(0, m):
         k = index * pow(2, d + 1)
         if k < n - 1:
@@ -26,6 +25,7 @@ def scanKernel(array, n):
             array[k + pow(2, d) - 1] = array[k + pow(2, d + 1) - 1]
             array[k + pow(2, d + 1) - 1] += t
         cuda.syncthreads()
+
 
 def scanGPU(array):
     n = len(array)
