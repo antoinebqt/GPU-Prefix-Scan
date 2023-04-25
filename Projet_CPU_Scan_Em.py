@@ -39,7 +39,7 @@ def generate_random_array(size):
     return random_array
 
 
-arrayTD = np.array([2, 3, 4, 6])
+arrayTD = np.array([2, 3, 4, 6, 1, 2, 3, 4])
 
 scanCPU(arrayTD)
 # scanCPU(generate_random_array(64))

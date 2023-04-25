@@ -1,40 +1,41 @@
 import math
 
 import numpy as np
-from numba import cuda, int32
+from numba import cuda
 
 
 @cuda.jit
 def scanKernel(array, n):
     m = round(math.log2(n))
-    index = cuda.grid(1)
+    x = cuda.grid(1)
+    if x == 0:
+        print("n :", n)
+        print("m :", m)
 
-    shared_array = cuda.shared.array(shape=1024, dtype=int32)
+    shared_array = cuda.shared.array(shape=1024, dtype=np.int32)
 
-    if index < n:
-        shared_array[index] = array[index]
+    if x < n:
+        shared_array[x] = array[x]
     cuda.syncthreads()
 
     for d in range(0, m):
-        k = index * pow(2, d + 1)
-        if k < n - 1:
-            shared_array[k + pow(2, d + 1) - 1] += shared_array[k + pow(2, d) - 1]
+        if x * 2 ** (d + 1) < n - 1:
+            shared_array[x * 2 ** (d + 1) + 2 ** (d + 1) - 1] += shared_array[x * 2 ** (d + 1) + 2 ** d - 1]
         cuda.syncthreads()
 
-    if index == 0:
+    if x == 0:
         shared_array[n - 1] = 0
     cuda.syncthreads()
 
     for d in range(m - 1, -1, -1):
-        k = index * pow(2, d + 1)
-        if k < n - 1:
-            t = shared_array[k + pow(2, d) - 1]
-            shared_array[k + pow(2, d) - 1] = shared_array[k + pow(2, d + 1) - 1]
-            shared_array[k + pow(2, d + 1) - 1] += t
+        if x * 2**(d + 1) < n - 1:
+                 temp = shared_array[x * 2 ** (d + 1) + 2**d - 1]
+                 shared_array[x * 2**(d + 1) + 2**d - 1] = shared_array[x * 2**(d + 1) + 2**(d + 1) - 1]
+                 shared_array[x * 2**(d + 1) + 2**(d + 1) - 1] += temp
         cuda.syncthreads()
 
-    array[index] = shared_array[index]
-    cuda.syncthreads()
+    if x < n:
+        array[x] = shared_array[x]
 
 
 def scanGPU(array):
@@ -56,5 +57,5 @@ def scanGPU(array):
     print("Array apres la montée et la descente : ", array)
 
 
-array = np.array([2, 3, 4, 6, 1], dtype=np.int32)
+array = np.array([2, 3, 4, 6, 1, 2, 3], dtype=np.int32)
 scanGPU(array)
