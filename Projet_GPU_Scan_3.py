@@ -56,7 +56,8 @@ def scanKernel2(array, arrayS, n, threads_per_block):
 
     # Création de l'array partagé et copie depuis l'array
     shared_array = cuda.shared.array(shape=1024, dtype=np.int32)
-    shared_array[local_id] = array[global_id]
+    if global_id < n:
+        shared_array[local_id] = array[global_id]
     cuda.syncthreads()
 
     # Montée
@@ -74,12 +75,6 @@ def scanKernel2(array, arrayS, n, threads_per_block):
         shared_array[threads_per_block - 1] = 0
     cuda.syncthreads()
 
-    if verbose:
-        for i in range(0, cuda.blockDim.x):
-            if local_id == 0:
-                print("FinMon - Bloc", block_id, ": shared_array[", i, "] = ", shared_array[i])
-        cuda.syncthreads()
-
     # Descente
     for d in range(m - 1, -1, -1):
         k = local_id * pow(2, d + 1)
@@ -93,12 +88,6 @@ def scanKernel2(array, arrayS, n, threads_per_block):
             t = shared_array[k + pow(2, d) - 1]
             shared_array[k + pow(2, d) - 1] = shared_array[k + pow(2, d + 1) - 1]
             shared_array[k + pow(2, d + 1) - 1] += t
-        cuda.syncthreads()
-
-    if verbose:
-        for i in range(0, cuda.blockDim.x):
-            if local_id == 0:
-                print("ApresD - Bloc", block_id, ": shared_array[", i, "] = ", shared_array[i])
         cuda.syncthreads()
 
     # Copie du résultat dans l'array
@@ -153,7 +142,7 @@ def scanGPU(array):
     return array
 
 
-array = np.array([2, 9, 15, 13, 10, 20, 2, 3], dtype=np.int32)
+array = np.array([2, 9, 15, 13, 10, 20, 2, 3, 1, 0], dtype=np.int32)
 # array = np.random.randint(low=1, high=100, size=1024, dtype='int32')
 
 print("Array apres la montée et la descente : ", scanGPU(array))

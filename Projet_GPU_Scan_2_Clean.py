@@ -63,5 +63,5 @@ def scanGPU(array):
     print("Array apres la montée et la descente : ", array)
 
 
-array = np.array([2, 3, 4, 6, 1, 2, 3], dtype=np.int32)
+array = np.array([2, 9, 15, 13, 10, 20, 2, 3, 1, 0], dtype=np.int32)
 scanGPU(array)
