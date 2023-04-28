@@ -1,23 +1,13 @@
 import math
+import sys
 
 import numpy as np
 from numba import cuda
-
-THREADS_PER_BLOCK = 2
-INDEPENDENT = False
-INCLUSIVE = False
-
-VERBOSE = False
-
 
 @cuda.jit
 def scanKernel(array, n):
     m = round(math.log2(n))
     idx = cuda.grid(1)
-
-    if idx == 0 and VERBOSE:
-        print("n :", n)
-        print("m :", m)
 
     shared_array = cuda.shared.array(shape=1024, dtype=np.int32)
 
@@ -52,11 +42,6 @@ def scanKernel2(array, arrayS, n, threads_per_block):
     global_id = cuda.grid(1)
     block_id = cuda.blockIdx.x
 
-    if cuda.grid(1) == 0 and VERBOSE:
-        print("n :", n)
-        print("m :", m)
-        print("threads_per_block :", threads_per_block)
-
     # Création de l'array partagé et copie depuis l'array
     shared_array = cuda.shared.array(shape=1024, dtype=np.int32)
     if global_id < n:
@@ -82,12 +67,7 @@ def scanKernel2(array, arrayS, n, threads_per_block):
     for d in range(m - 1, -1, -1):
         k = local_id * pow(2, d + 1)
         if k < n - 1:
-            if VERBOSE:
-                print("(Bloc", block_id, ") Par k =", k, "(et d =", d, ") t = sa[", k + pow(2, d) - 1, "](",
-                      shared_array[k + pow(2, d) - 1], ") | sa[", k + pow(2, d) - 1, "](",
-                      shared_array[k + pow(2, d) - 1], ") = sa[", k + pow(2, d + 1) - 1, "](",
-                      shared_array[k + pow(2, d + 1) - 1], ") | sa[", k + pow(2, d + 1) - 1, "](",
-                      shared_array[k + pow(2, d + 1) - 1], ") += t")
+
             t = shared_array[k + pow(2, d) - 1]
             shared_array[k + pow(2, d) - 1] = shared_array[k + pow(2, d + 1) - 1]
             shared_array[k + pow(2, d + 1) - 1] += t
@@ -104,13 +84,15 @@ def addPrefixSum(array, arrayPrefixSum, n):
     if global_id < n:
         array[global_id] += arrayPrefixSum[block_id]
 
+
 @cuda.jit
 def addInitialArray(array, initialArray, n):
     global_id = cuda.grid(1)
     if global_id < n:
         array[global_id] += initialArray[global_id]
 
-def scanGPU(array):
+
+def scanGPU(array, THREADS_PER_BLOCK, INDEPENDENT):
     n = len(array)
     if n <= THREADS_PER_BLOCK:
         m = int(math.pow(2, math.ceil(math.log2(n))))  # Puissance de 2 supérieure
@@ -140,9 +122,8 @@ def scanGPU(array):
         scanKernel2[blocks_on_grid, threads_per_block](d_a, d_aS, n, threads_per_block)
 
         arrayS = d_aS.copy_to_host()
-        if VERBOSE: print("arrayS :", arrayS)
 
-        prefixSum = scanGPU(arrayS)
+        prefixSum = scanGPU(arrayS, THREADS_PER_BLOCK, INDEPENDENT)
         d_apS = cuda.to_device(prefixSum)
 
         if not INDEPENDENT:
@@ -153,9 +134,9 @@ def scanGPU(array):
     return array
 
 
-def scanGPU2(array):
+def scanGPU2(array, THREADS_PER_BLOCK, INDEPENDENT, INCLUSIVE):
     n = len(array)
-    result = scanGPU(array)
+    result = scanGPU(array, THREADS_PER_BLOCK, INDEPENDENT)
 
     if INCLUSIVE:
         d_aR = cuda.to_device(result)
@@ -171,8 +152,30 @@ def scanGPU2(array):
     return result
 
 
+def main():
+    input_file = sys.argv[1]
+    THREADS_PER_BLOCK = 1024
+    INDEPENDENT = False
+    INCLUSIVE = False
 
-array = np.array([1, 2, 3, 4, 5], dtype=np.int32)
-# array = np.random.randint(low=1, high=100, size=1024, dtype='int32')
+    for i in range(2, len(sys.argv)):
+        if sys.argv[i] == "--tb":
+            THREADS_PER_BLOCK = int(sys.argv[i + 1])
+        if sys.argv[i] == "--independent":
+            INDEPENDENT = True
+        if sys.argv[i] == "--inclusive":
+            INCLUSIVE = True
 
-print("Array apres la montée et la descente : ", scanGPU2(array))
+    # Read the input array from the file
+    with open(input_file, 'r') as f:
+        array = [int(x) for x in f.read().split(',')]
+
+    # Perform the scan on the GPU
+    result = scanGPU2(array, THREADS_PER_BLOCK, INDEPENDENT, INCLUSIVE)
+
+    # Print the result
+    print(','.join(str(x) for x in result))
+
+
+if __name__ == '__main__':
+    main()
